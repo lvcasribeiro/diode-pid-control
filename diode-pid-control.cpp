@@ -2,8 +2,20 @@
 const int ldr_pin = 15;
 const int transistor_pin = 5;
 
+// PID constants:
+const float kp = 7.5;
+const float ki = 0.2;
+const float kd = 0.3;
+
+// Time management:
+unsigned long previous_millis = 0;
+const long interval = 100;
+
 // Global variables:
+float integral = 0;
+float last_error = 0;
 int setpoint = 0;
+int previous_pwm_value = 0;
 
 // Setup function:
 void setup() {
@@ -17,6 +29,37 @@ void setup() {
 
 // Loop function:
 void loop() {
+    unsigned long current_millis = millis();
+
+    if (current_millis - previous_millis >= interval) {
+        previous_millis = current_millis;
+
+        int light_analog_value = analogRead(ldr_pin);
+        float error = setpoint - light_analog_value;
+
+        float proportional = kp * error;
+        integral += ki * error;
+        float derivative = kd * (error - last_error);
+
+        float output = proportional + integral + derivative;
+
+        int pwm_value = constrain(map(output, -100, 100, 0, 255), 0, 255);
+
+        float smoothing_factor = 0.5;
+        int smoothed_pwm_value = (1.0 - smoothing_factor) * pwm_value + smoothing_factor * previous_pwm_value;
+
+        analogWrite(transistor_pin, smoothed_pwm_value);
+
+        previous_pwm_value = smoothed_pwm_value;
+
+        last_error = error;
+
+        Serial.print("- Light analog value: ");
+        Serial.print(light_analog_value);
+        Serial.print(" > Output: ");
+        Serial.println(smoothed_pwm_value);
+    }
+
     if (Serial.available() > 0) {
         readSerialMonitor();
     }

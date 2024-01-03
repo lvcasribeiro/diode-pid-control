@@ -14,6 +14,7 @@ const long interval = 100;
 // Global variables:
 float integral = 0;
 float last_error = 0;
+const int debug = 0;
 int setpoint = 0;
 int previous_pwm_value = 0;
 
@@ -58,10 +59,12 @@ void loop() {
 
         last_error = error;
 
-        Serial.print("- Light analog value: ");
-        Serial.print(light_analog_value);
-        Serial.print(" > Output: ");
-        Serial.println(smoothed_pwm_value);
+        if (debug == 2) {
+            Serial.print("- Light analog value: ");
+            Serial.print(light_analog_value);
+            Serial.print(" > Output: ");
+            Serial.println(smoothed_pwm_value);
+        }
     }
 
     if (Serial.available() > 0) {
@@ -76,9 +79,13 @@ void readSerialMonitor() {
     
     if (new_setpoint != 0) {
         setpoint = new_setpoint;
-        Serial.print("- Setpoint changed to: ");
-        Serial.println(setpoint);
+        if (debug == 1) {
+            Serial.print("- Setpoint changed to: ");
+            Serial.println(setpoint);
+        }
     } else {
-        Serial.println("- Invalid input. Please enter a valid integer.");
+        if (debug == 1) {
+            Serial.println("- Invalid input. Please enter a valid integer.");
+        }
     }
 }

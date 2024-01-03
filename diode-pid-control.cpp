@@ -43,6 +43,10 @@ void loop() {
 
         float output = proportional + integral + derivative;
 
+        if (output >= 255 || output <= 0) {
+            integral = 0;
+        }
+
         int pwm_value = constrain(map(output, -100, 100, 0, 255), 0, 255);
 
         float smoothing_factor = 0.5;

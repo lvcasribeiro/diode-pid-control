@@ -59,7 +59,7 @@ void loop() {
 
         last_error = error;
 
-        if (debug == 2) {
+        if (debug >= 2) {
             Serial.print("- Light analog value: ");
             Serial.print(light_analog_value);
             Serial.print(" > Output: ");
@@ -79,12 +79,12 @@ void readSerialMonitor() {
     
     if (new_setpoint != 0) {
         setpoint = new_setpoint;
-        if (debug == 1) {
+        if (debug >= 1) {
             Serial.print("- Setpoint changed to: ");
             Serial.println(setpoint);
         }
     } else {
-        if (debug == 1) {
+        if (debug >= 1) {
             Serial.println("- Invalid input. Please enter a valid integer.");
         }
     }

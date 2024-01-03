@@ -1,3 +1,6 @@
+// Libraries import:
+#include <time.h>
+
 // Pinout:
 const int ldr_pin = 15;
 const int transistor_pin = 5;
@@ -11,10 +14,15 @@ const float kd = 0.3;
 unsigned long previous_millis = 0;
 const long interval = 100;
 
+// Local date and time capture and time zone correction:
+#define NTP_SERVER "pool.ntp.br"
+const int daylight_offset_sec = 0;
+const long gmt_offset_sec = -3600*3;
+
 // Global variables:
 float integral = 0;
 float last_error = 0;
-const int debug = 0;
+const int debug = 2;
 int setpoint = 0;
 int previous_pwm_value = 0;
 
@@ -25,12 +33,37 @@ void setup() {
 
     analogWrite(transistor_pin, 0);
 
+    configTime(gmt_offset_sec, daylight_offset_sec, NTP_SERVER);
+
     Serial.begin(115200);
 }
 
 // Loop function:
 void loop() {
     unsigned long current_millis = millis();
+
+    char current_date[15];
+    char current_time[15];
+
+    char hour[3];
+    char minute[3];
+    char week_day[10];
+
+    struct tm time_info;
+
+    if (!getLocalTime(&time_info)) {
+        if (debug >= 1) {
+            Serial.println("- Failed to capture NTP server data.");
+        }
+        return;
+    }
+
+    strftime(current_date, 15, "%e/%m/%Y", &time_info);
+    strftime(current_time, 15, "%H:%M:%S", &time_info);
+
+    strftime(hour, 3, "%H", &time_info);
+    strftime(minute, 3, "%M", &time_info);
+    strftime(week_day, 10, "%A", &time_info);
 
     if (current_millis - previous_millis >= interval) {
         previous_millis = current_millis;
@@ -60,7 +93,11 @@ void loop() {
         last_error = error;
 
         if (debug >= 2) {
-            Serial.print("- Light analog value: ");
+            Serial.print("- ");
+            Serial.print(current_date);
+            Serial.print(" - ");
+            Serial.print(current_time);
+            Serial.print(" - Light analog value: ");
             Serial.print(light_analog_value);
             Serial.print(" > Output: ");
             Serial.println(smoothed_pwm_value);

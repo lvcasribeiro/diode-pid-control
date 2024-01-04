@@ -26,17 +26,17 @@ int setpoint = 0;
 
 Connect the components as follows:
 
-###### 1. LDR Light Sensor: `Pin 15`
+###### 1. LDR Light Sensor: `Pin 32`
 
 - Connect one leg of the LDR to the 3.3V on the ESP32;
 - Connect the other leg to one leg of a resistor (e.g., 10k Ohms);
 - Connect the other leg of the resistor to the ground (GND) on the ESP32;
-- Connect the junction of the LDR and resistor to an analog pin (e.g., 15) on the ESP32.
+- Connect the junction of the LDR and resistor to an analog pin (e.g., 32) on the ESP32.
 
 <br>
 
 <p align="center">
-    <img src="https://github.com/lvcasribeiro/automatic-punch-the-clock/assets/96185134/01cdc00b-713f-4e57-aaee-78a87d739669">
+    <img src="https://github.com/lvcasribeiro/diode-pid-control/assets/96185134/c9197bd8-3717-43cb-821b-b0cbc9b51c83">
 </p>
 
 ###### 2. 2N2222 NPN Transistor: `Pin 5`

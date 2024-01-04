@@ -20,6 +20,10 @@ const long interval = 100;
 const int daylight_offset_sec = 0;
 const long gmt_offset_sec = -3600*3;
 
+// Wi-fi connection, network SSID and password:
+#define WIFI_SSID "your_wifi_ssid"
+#define WIFI_PASSWORD "your_wifi_password"
+
 // Global variables:
 float integral = 0;
 float last_error = 0;
@@ -44,55 +48,61 @@ void setup() {
     Serial.begin(115200);
 
     configTime(gmt_offset_sec, daylight_offset_sec, NTP_SERVER);
+    connectToWifi();
 }
 
 // Loop function:
 void loop() {
     unsigned long current_millis = millis();    
 
-    timeCapture();
+    if (WiFi.status() == WL_CONNECTED) {
+        timeCapture();
 
-    if (current_millis - previous_millis >= interval) {
-        previous_millis = current_millis;
+        if (current_millis - previous_millis >= interval) {
+            previous_millis = current_millis;
 
-        int light_analog_value = analogRead(ldr_pin);
-        float error = setpoint - light_analog_value;
+            int light_analog_value = analogRead(ldr_pin);
+            float error = setpoint - light_analog_value;
 
-        float proportional = kp * error;
-        integral += ki * error;
-        float derivative = kd * (error - last_error);
+            float proportional = kp * error;
+            integral += ki * error;
+            float derivative = kd * (error - last_error);
 
-        float output = proportional + integral + derivative;
+            float output = proportional + integral + derivative;
 
-        if (output >= 255 || output <= 0) {
-            integral = 0;
+            if (output >= 255 || output <= 0) {
+                integral = 0;
+            }
+
+            int pwm_value = constrain(map(output, -100, 100, 0, 255), 0, 255);
+
+            float smoothing_factor = 0.5;
+            int smoothed_pwm_value = (1.0 - smoothing_factor) * pwm_value + smoothing_factor * previous_pwm_value;
+
+            analogWrite(transistor_pin, smoothed_pwm_value);
+
+            previous_pwm_value = smoothed_pwm_value;
+
+            last_error = error;
+
+            if (debug >= 2) {
+                Serial.print("- ");
+                Serial.print(current_time);
+                Serial.print(" - Light analog value: ");
+                Serial.print(light_analog_value);
+                Serial.print(" - Output: ");
+                Serial.println(smoothed_pwm_value);
+            }
         }
 
-        int pwm_value = constrain(map(output, -100, 100, 0, 255), 0, 255);
-
-        float smoothing_factor = 0.5;
-        int smoothed_pwm_value = (1.0 - smoothing_factor) * pwm_value + smoothing_factor * previous_pwm_value;
-
-        analogWrite(transistor_pin, smoothed_pwm_value);
-
-        previous_pwm_value = smoothed_pwm_value;
-
-        last_error = error;
-
-        if (debug >= 2) {
-            Serial.print("- ");
-            Serial.print(current_date);
-            Serial.print(" - ");
-            Serial.print(current_time);
-            Serial.print(" - Light analog value: ");
-            Serial.print(light_analog_value);
-            Serial.print(" > Output: ");
-            Serial.println(smoothed_pwm_value);
+        if (Serial.available() > 0) {
+            readSerialMonitor();
         }
-    }
-
-    if (Serial.available() > 0) {
-        readSerialMonitor();
+    } else {
+        if (debug >= 1) {
+            Serial.println("- Loss of Wi-Fi connection.");
+        }
+        connectToWifi();
     }
 }
 
@@ -122,6 +132,9 @@ void timeCapture() {
         if (debug >= 1) {
             Serial.println("- Failed to capture NTP server data.");
         }
+
+        configTime(gmt_offset_sec, daylight_offset_sec, NTP_SERVER);
+
         return;
     }
 
@@ -131,4 +144,34 @@ void timeCapture() {
     strftime(current_hour, 3, "%H", &time_info);
     strftime(current_minute, 3, "%M", &time_info);
     strftime(current_week_day, 10, "%A", &time_info);
+}
+
+// Wi-fi connection function:
+void connectToWifi() {
+    if (debug >= 1) {
+        Serial.print("- Connecting to the Wi-Fi network...");
+    }
+
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+
+    unsigned long wifi_millis = millis();
+
+    while (WiFi.status() != WL_CONNECTED && millis() - wifi_millis < 5000) {
+        if (debug >= 1) {
+            Serial.print(".");
+        }
+        
+        delay(500);
+    }
+
+    if (WiFi.status() == WL_CONNECTED) {
+        if (debug >= 1) {
+            Serial.print("\n- Connected to Wi-Fi network, IP address: ");
+            Serial.println(WiFi.localIP());
+        }
+    } else {
+        if (debug >= 1) {
+            Serial.println("\n- Failed to connect to Wi-Fi.");
+        }
+    }
 }

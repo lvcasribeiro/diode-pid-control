@@ -13,7 +13,7 @@ const float kd = 0.3;
 
 // Time management:
 unsigned long previous_millis = 0;
-const long interval = 100;
+const long interval = 500;
 
 // Local date and time capture and time zone correction:
 #define NTP_SERVER "pool.ntp.br"
@@ -29,6 +29,7 @@ float integral = 0;
 float last_error = 0;
 const int debug = 2;
 int setpoint = 0;
+int pid_control = 1;
 int previous_pwm_value = 0;
 
 char current_date[15];
@@ -53,12 +54,27 @@ void setup() {
 
 // Loop function:
 void loop() {
-    unsigned long current_millis = millis();    
+    unsigned long current_millis = millis();
 
     if (WiFi.status() == WL_CONNECTED) {
         timeCapture();
 
-        if (current_millis - previous_millis >= interval) {
+        if (strcmp(current_hour, "4") == 0 && strcmp(current_minute, "00") == 0 && pid_control == 0) {
+            pid_control = 1;
+
+            if (debug >= 1) {
+                Serial.println("- Resuming reading of local lighting values.");
+            }
+        } else if (strcmp(current_hour, "20") == 0 && strcmp(current_minute, "00") == 0  && pid_control == 1) {
+            pid_control = 0;
+            analogWrite(transistor_pin, 255);
+
+            if (debug >= 1) {
+                Serial.println("- Stopping PID control, assuming low light hours and allowing transistor at maximum operation.");
+            }
+        }
+
+        if (current_millis - previous_millis >= interval && pid_control == 1) {
             previous_millis = current_millis;
 
             int light_analog_value = analogRead(ldr_pin);
@@ -134,7 +150,7 @@ void timeCapture() {
         }
 
         configTime(gmt_offset_sec, daylight_offset_sec, NTP_SERVER);
-
+        
         return;
     }
 

@@ -1,8 +1,10 @@
 // Libraries import:
 #include <WiFi.h>
 #include <time.h>
+#include <DHT.h>
 
 // Pinout:
+const int dht_pin = 4;
 const int ldr_pin = 32;
 const int transistor_pin = 5;
 
@@ -11,8 +13,16 @@ const float kp = 7.5;
 const float ki = 0.2;
 const float kd = 0.3;
 
+// LDR absolute maximum ratings:
+const float reference_temperature = 25.0;
+const float temperature_range = 50.0;
+
+// DHT-22 setup:
+#define dht_type DHT22
+DHT dht(dht_pin, dht_type);
+
 // Time management:
-unsigned long previous_millis = 0;
+unsigned long pid_millis = 0;
 const long interval = 500;
 
 // Local date and time capture and time zone correction:
@@ -41,6 +51,7 @@ char current_week_day[10];
 
 // Setup function:
 void setup() {
+    pinMode(dht_pin, INPUT);
     pinMode(ldr_pin, INPUT);
     pinMode(transistor_pin, OUTPUT);
 
@@ -50,6 +61,8 @@ void setup() {
 
     configTime(gmt_offset_sec, daylight_offset_sec, NTP_SERVER);
     connectToWifi();
+
+    dht.begin();
 }
 
 // Loop function:
@@ -59,7 +72,7 @@ void loop() {
     if (WiFi.status() == WL_CONNECTED) {
         timeCapture();
 
-        if (strcmp(current_hour, "4") == 0 && strcmp(current_minute, "00") == 0 && pid_control == 0) {
+        if (strcmp(current_hour, "5") == 0 && strcmp(current_minute, "00") == 0 && pid_control == 0) {
             pid_control = 1;
 
             if (debug >= 1) {
@@ -74,10 +87,13 @@ void loop() {
             }
         }
 
-        if (current_millis - previous_millis >= interval && pid_control == 1) {
-            previous_millis = current_millis;
 
-            int light_analog_value = analogRead(ldr_pin);
+        if (current_millis - pid_millis >= interval && pid_control == 1) {
+            pid_millis = current_millis;
+
+            float temperature = temperatureDegrees();
+            int light_analog_value = adjustForTemperature(temperature);
+            
             float error = setpoint - light_analog_value;
 
             float proportional = kp * error;
@@ -138,6 +154,26 @@ void readSerialMonitor() {
             Serial.println("- Invalid input. Please enter a valid integer.");
         }
     }
+}
+
+// Temperature capture function:
+float temperatureDegrees() {
+    float temperature = dht.readTemperature();
+    temperature = round(temperature * 100.0) / 100.0;
+
+    return temperature;
+}
+
+// LDR measurement compensation function:
+int adjustForTemperature(float temperature) {
+    int light_analog_value = analogRead(ldr_pin);
+    float derating_factor = 1.0 - ((temperature - reference_temperature) / temperature_range);
+    
+    int compensated_light_analog_value = static_cast<int>(light_analog_value * derating_factor);
+
+    compensated_light_analog_value = constrain(compensated_light_analog_value, 0, 4095);
+
+    return compensated_light_analog_value;
 }
 
 // Time management function:
